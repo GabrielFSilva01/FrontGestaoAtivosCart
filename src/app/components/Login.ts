@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../services/AuthService';
-import { AppStore } from '../store/AppStore';
+import { AppStore } from '../store/AppStoreService';
 import { SkeletonComponent } from './ui/skeleton.component';
 
 type AuthView = 'login' | 'forgot-password';

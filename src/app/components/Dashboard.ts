@@ -1,7 +1,7 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AppStore } from '../store/AppStore';
+import { AppStore } from '../store/AppStoreService';
 import { SkeletonComponent } from './ui/skeleton.component';
 
 @Component({
@@ -11,8 +11,8 @@ import { SkeletonComponent } from './ui/skeleton.component';
   template: `
     <div class="dashboard-wrapper">
       <div class="dashboard-header animate-fade-in">
-        <h2>Dashboard Geral</h2>
-        <p class="subtitle">Monitore as credenciais de acesso, perfis e usuários cadastrados no Supabase.</p>
+        <h2>Dashboard Geral e Governança</h2>
+        <p class="subtitle">Gerencie o time, convide novos colaboradores e inspecione os logs de auditoria de segurança.</p>
       </div>
 
       <!-- ALERTAS DE ERRO -->
@@ -62,7 +62,7 @@ import { SkeletonComponent } from './ui/skeleton.component';
           <!-- Card Gestores -->
           <div class="metric-card animate-fade-in hover-glow red">
             <div class="metric-header">
-              <span class="metric-title">Gestores</span>
+              <span class="metric-title">Gestores (Admins)</span>
               <div class="metric-icon-wrapper">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="metric-icon">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
@@ -73,10 +73,10 @@ import { SkeletonComponent } from './ui/skeleton.component';
             <div class="metric-subtext">Nível administrativo máximo</div>
           </div>
 
-          <!-- Card Gerentes / Supervisores -->
+          <!-- Card Auditores -->
           <div class="metric-card animate-fade-in hover-glow blue">
             <div class="metric-header">
-              <span class="metric-title">Gerentes e Supervisores</span>
+              <span class="metric-title">Auditores</span>
               <div class="metric-icon-wrapper">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="metric-icon">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
@@ -84,13 +84,13 @@ import { SkeletonComponent } from './ui/skeleton.component';
               </div>
             </div>
             <div class="metric-value">{{ getRoleCount('Gerente') + getRoleCount('Supervisor') }}</div>
-            <div class="metric-subtext">Nível de supervisão ativo</div>
+            <div class="metric-subtext">Responsáveis por inventários</div>
           </div>
 
-          <!-- Card Membros -->
+          <!-- Card Operadores / Membros -->
           <div class="metric-card animate-fade-in hover-glow gray">
             <div class="metric-header">
-              <span class="metric-title">Membros Comuns</span>
+              <span class="metric-title">Operadores</span>
               <div class="metric-icon-wrapper">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="metric-icon">
                   <circle cx="12" cy="12" r="10"></circle>
@@ -104,102 +104,281 @@ import { SkeletonComponent } from './ui/skeleton.component';
         }
       </div>
 
-      <!-- LISTAGEM DE USUÁRIOS -->
-      <div class="users-list-card animate-fade-in">
-        <div class="card-header flex-header">
-          <div>
-            <h3>Visualização de Usuários</h3>
-            <p class="subtitle">Lista detalhada dos usuários cadastrados no banco de dados e seus respectivos níveis de acesso.</p>
-          </div>
-          <button class="btn btn-primary btn-sm flex-btn" (click)="openCreateModal()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Novo Usuário
-          </button>
-        </div>
+      <!-- TABS SELECTOR -->
+      <div class="dashboard-tabs animate-fade-in">
+        <button class="tab-btn" [class.active]="activeTab() === 'usuarios'" (click)="activeTab.set('usuarios')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+          </svg>
+          <span>Usuários</span>
+        </button>
+        <button class="tab-btn" [class.active]="activeTab() === 'convites'" (click)="activeTab.set('convites')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+          <span>Painel de Convites</span>
+        </button>
+        <button class="tab-btn" [class.active]="activeTab() === 'logs'" (click)="activeTab.set('logs')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span>Logs de Acesso</span>
+        </button>
+      </div>
 
-        <div class="table-container">
-          <table class="users-table">
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>UID no Supabase</th>
-                <th>Perfil de Acesso</th>
-                <th>Data de Criação</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              @if (store.loading()) {
-                @for (row of [1, 2, 3, 4, 5]; track row) {
-                  <tr class="skeleton-row">
-                    <td><app-skeleton width="140px" height="16px" radius="4px"></app-skeleton></td>
-                    <td><app-skeleton width="280px" height="14px" radius="4px"></app-skeleton></td>
-                    <td><app-skeleton width="90px" height="22px" radius="12px"></app-skeleton></td>
-                    <td><app-skeleton width="110px" height="14px" radius="4px"></app-skeleton></td>
-                    <td><app-skeleton width="60px" height="22px" radius="6px"></app-skeleton></td>
-                  </tr>
+      <!-- TAB 1: LISTAGEM DE USUÁRIOS -->
+      @if (activeTab() === 'usuarios') {
+        <div class="users-list-card animate-fade-in">
+          <div class="card-header flex-header">
+            <div>
+              <h3>Visualização de Usuários</h3>
+              <p class="subtitle">Lista detalhada dos usuários cadastrados no banco de dados e seus respectivos níveis de acesso.</p>
+            </div>
+            <button class="btn btn-primary btn-sm flex-btn" (click)="openCreateModal()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Novo Usuário (Manual)
+            </button>
+          </div>
+
+          <div class="table-container">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>UID no Supabase</th>
+                  <th>Perfil de Acesso</th>
+                  <th>Data de Criação</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (store.loading()) {
+                  @for (row of [1, 2, 3, 4, 5]; track row) {
+                    <tr class="skeleton-row">
+                      <td><app-skeleton width="140px" height="16px" radius="4px"></app-skeleton></td>
+                      <td><app-skeleton width="280px" height="14px" radius="4px"></app-skeleton></td>
+                      <td><app-skeleton width="90px" height="22px" radius="12px"></app-skeleton></td>
+                      <td><app-skeleton width="110px" height="14px" radius="4px"></app-skeleton></td>
+                      <td><app-skeleton width="60px" height="22px" radius="6px"></app-skeleton></td>
+                    </tr>
+                  }
+                } @else {
+                  @for (user of store.usuariosList(); track user.id) {
+                    <tr class="user-row">
+                      <td class="user-name-cell">
+                        <div class="avatar-cell">
+                          {{ user.nome[0].toUpperCase() }}
+                        </div>
+                        <span>{{ user.nome }}</span>
+                      </td>
+                      <td class="uid-cell">
+                        <code>{{ user.id }}</code>
+                      </td>
+                      <td>
+                        <span class="role-badge" [ngClass]="getRoleClass(user.perfil_nome)">
+                          {{ user.perfil_nome }}
+                        </span>
+                      </td>
+                      <td class="date-cell">
+                        {{ formatDate(user.created_at) }}
+                      </td>
+                      <td class="actions-cell">
+                        <button class="action-btn edit" (click)="openEditModal(user)" title="Editar Usuário">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                          </svg>
+                        </button>
+                        <button class="action-btn delete" (click)="handleDelete(user.id)" title="Excluir Usuário">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="5" class="empty-state">
+                        <p>Nenhum usuário cadastrado no sistema do Supabase.</p>
+                      </td>
+                    </tr>
+                  }
                 }
-              } @else {
-                @for (user of store.usuariosList(); track user.id) {
-                  <tr class="user-row">
-                    <td class="user-name-cell">
-                      <div class="avatar-cell">
-                        {{ user.nome[0].toUpperCase() }}
-                      </div>
-                      <span>{{ user.nome }}</span>
-                    </td>
-                    <td class="uid-cell">
-                      <code>{{ user.id }}</code>
-                    </td>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- TAB 2: PAINEL DE CONVITES -->
+      @if (activeTab() === 'convites') {
+        <div class="admin-panel-card animate-fade-in">
+          <div class="panel-layout">
+            <div class="form-panel glass-card-dark">
+              <h4>Convidar Novo Colaborador</h4>
+              <p class="subtitle mb-4">Envie um convite de acesso seguro via e-mail e defina seu papel correspondente.</p>
+              
+              <form (submit)="$event.preventDefault()" class="invite-form">
+                <div class="form-group">
+                  <label for="inviteEmail">E-mail Corporativo</label>
+                  <input 
+                    type="email" 
+                    id="inviteEmail" 
+                    name="inviteEmail" 
+                    [(ngModel)]="inviteEmail" 
+                    placeholder="colaborador@empresa.com" 
+                    [disabled]="isSubmitting()"
+                    required
+                  />
+                </div>
+                
+                <div class="form-group">
+                  <label for="inviteRole">Papel Organizacional</label>
+                  <select 
+                    id="inviteRole" 
+                    name="inviteRole" 
+                    [(ngModel)]="invitePerfilId"
+                    [disabled]="isSubmitting()"
+                  >
+                    <option [value]="1">Administrador (Gestor)</option>
+                    <option [value]="2">Auditor (Gerente)</option>
+                    <option [value]="4">Operador (Membro Comum)</option>
+                  </select>
+                </div>
+                
+                <button 
+                  type="submit" 
+                  (click)="handleInviteSubmit()" 
+                  class="btn btn-primary mt-4" 
+                  [disabled]="isSubmitting() || !inviteEmail"
+                >
+                  @if (isSubmitting()) {
+                    <span class="spinner"></span>
+                    <span>Enviando Convite...</span>
+                  } @else {
+                    <span>Enviar Convite</span>
+                  }
+                </button>
+              </form>
+            </div>
+
+            <div class="history-panel">
+              <div class="card-header">
+                <h3>Convites de Acesso Enviados</h3>
+                <p class="subtitle">Verifique quem foi convidado e o respectivo status de ativação.</p>
+              </div>
+
+              <div class="table-container">
+                <table class="users-table">
+                  <thead>
+                    <tr>
+                      <th>E-mail Convidado</th>
+                      <th>Papel</th>
+                      <th>Enviado por</th>
+                      <th>Status</th>
+                      <th>Data</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (invite of store.convitesList(); track invite.id) {
+                      <tr>
+                        <td><strong>{{ invite.email }}</strong></td>
+                        <td>
+                          <span class="role-badge" [ngClass]="getRoleClassById(invite.perfil_acesso_id)">
+                            {{ getRoleName(invite.perfil_acesso_id) }}
+                          </span>
+                        </td>
+                        <td>{{ invite.enviado_por }}</td>
+                        <td>
+                          <span class="status-pill" [ngClass]="invite.status.toLowerCase()">
+                            {{ invite.status }}
+                          </span>
+                        </td>
+                        <td class="date-cell">{{ formatDate(invite.created_at) }}</td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td colspan="5" class="empty-state">Nenhum convite enviado ainda.</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- TAB 3: LOGS DE ACESSO -->
+      @if (activeTab() === 'logs') {
+        <div class="admin-panel-card animate-fade-in">
+          <div class="card-header flex-header">
+            <div>
+              <h3>Logs de Acesso e Auditoria de Segurança</h3>
+              <p class="subtitle">Registros detalhados de logins, ações críticas e governança sobre o inventário.</p>
+            </div>
+            <div class="search-input-container" style="max-width: 300px; position: relative;">
+              <input 
+                type="text" 
+                placeholder="Filtrar logs..." 
+                [(ngModel)]="logSearchQuery"
+                name="logSearchQuery"
+                style="padding-left: 2rem;"
+              />
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: #64748b;">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Data e Hora</th>
+                  <th>Usuário</th>
+                  <th>Ação Principal</th>
+                  <th>IP de Origem</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (log of getFilteredLogs(); track log.id) {
+                  <tr>
+                    <td class="date-cell" style="font-weight: 600;">{{ formatDate(log.data_hora) }}</td>
+                    <td>{{ log.usuario_email }}</td>
+                    <td><code>{{ log.acao }}</code></td>
+                    <td class="date-cell">{{ log.ip_origem }}</td>
                     <td>
-                      <span class="role-badge" [ngClass]="getRoleClass(user.perfil_nome)">
-                        {{ user.perfil_nome }}
+                      <span class="status-pill" [ngClass]="log.status.toLowerCase()">
+                        {{ log.status }}
                       </span>
-                    </td>
-                    <td class="date-cell">
-                      {{ formatDate(user.created_at) }}
-                    </td>
-                    <td class="actions-cell">
-                      <button class="action-btn edit" (click)="openEditModal(user)" title="Editar Usuário">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                          <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                      </button>
-                      <button class="action-btn delete" (click)="handleDelete(user.id)" title="Excluir Usuário">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          <line x1="10" y1="11" x2="10" y2="17"></line>
-                          <line x1="14" y1="11" x2="14" y2="17"></line>
-                        </svg>
-                      </button>
                     </td>
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="5" class="empty-state">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="8" y1="12" x2="16" y2="12"></line>
-                      </svg>
-                      <p>Nenhum usuário cadastrado no sistema do Supabase.</p>
-                    </td>
+                    <td colspan="5" class="empty-state">Nenhum registro de log de auditoria encontrado.</td>
                   </tr>
                 }
-              }
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      }
     </div>
 
     <!-- TOAST NOTIFICATION -->
     @if (toastMessage()) {
-      <div class="toast-container animate-fade-in" [ngClass]="toastType()">
+      <div class="toast-container success-toast animate-fade-in" [ngClass]="toastType()">
         <div class="toast-content">
           @if (toastType() === 'success') {
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toast-icon">
@@ -613,11 +792,6 @@ import { SkeletonComponent } from './ui/skeleton.component';
       color: #64748b;
     }
 
-    .empty-icon {
-      color: #475569;
-      margin-bottom: 0.75rem;
-    }
-
     .mb-3 { margin-bottom: 0.75rem; }
     .mb-2 { margin-bottom: 0.5rem; }
 
@@ -637,7 +811,17 @@ export class DashboardComponent implements OnInit {
 
   errorMessage = signal<string | null>(null);
 
-  // MODAL & FORM STATE
+  // Tabs
+  activeTab = signal<'usuarios' | 'convites' | 'logs'>('usuarios');
+
+  // Form de convites
+  inviteEmail = '';
+  invitePerfilId = 4;
+
+  // Filtro de logs
+  logSearchQuery = '';
+
+  // MODAL & FORM STATE (Usuario Manual)
   showModal = signal<boolean>(false);
   isEditing = signal<boolean>(false);
   isSubmitting = signal<boolean>(false);
@@ -657,7 +841,6 @@ export class DashboardComponent implements OnInit {
   async loadDashboardData() {
     this.errorMessage.set(null);
     try {
-      // Carrega os dados na AppStore de forma concorrente via Promise.all
       await this.store.initializeStore();
     } catch (err: any) {
       console.error('Erro ao carregar dados do painel:', err);
@@ -678,6 +861,24 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  getRoleClassById(id: number): string {
+    switch (id) {
+      case 1: return 'badge-gestor';
+      case 2: return 'badge-gerente';
+      case 3: return 'badge-supervisor';
+      default: return 'badge-membro';
+    }
+  }
+
+  getRoleName(id: number): string {
+    switch (id) {
+      case 1: return 'Gestor';
+      case 2: return 'Gerente';
+      case 3: return 'Supervisor';
+      default: return 'Membro Comum';
+    }
+  }
+
   formatDate(isoString: string): string {
     if (!isoString) return '-';
     try {
@@ -694,7 +895,32 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  // MODAL LOGIC ACTIONS
+  getFilteredLogs(): any[] {
+    const query = this.logSearchQuery.toLowerCase().trim();
+    if (!query) return this.store.acessoLogsList();
+    return this.store.acessoLogsList().filter(log => 
+      log.usuario_email.toLowerCase().includes(query) || 
+      log.acao.toLowerCase().includes(query) ||
+      log.status.toLowerCase().includes(query)
+    );
+  }
+
+  async handleInviteSubmit() {
+    if (!this.inviteEmail) return;
+    this.isSubmitting.set(true);
+    try {
+      await this.store.inviteUser(this.inviteEmail, Number(this.invitePerfilId));
+      this.showToast('Convite de acesso enviado com sucesso!', 'success');
+      this.inviteEmail = '';
+    } catch (err: any) {
+      console.error(err);
+      this.showToast(err.message || 'Erro ao enviar convite.', 'error');
+    } finally {
+      this.isSubmitting.set(false);
+    }
+  }
+
+  // MODAL LOGIC ACTIONS (Criar/Editar Manual)
   openCreateModal() {
     this.isEditing.set(false);
     this.formId = '';

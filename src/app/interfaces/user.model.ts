@@ -10,6 +10,8 @@ export interface Profile {
   perfil_acesso_id: number;
   created_at: string;
   perfil: Role;
+  tema?: string;
+  ativo?: boolean;
 }
 
 // Consolidates auth details and the user's role profile

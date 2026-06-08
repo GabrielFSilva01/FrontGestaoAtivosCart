@@ -89,6 +89,33 @@ export interface UsuariosEquipesRow {
   equipe_id: number;
 }
 
+export interface ItemHistoryRow {
+  id: number;
+  estoque_id: number;
+  data_hora: string;
+  responsavel: string;
+  acao: string;
+  notas: string | null;
+}
+
+export interface AcessoLogRow {
+  id: number;
+  data_hora: string;
+  usuario_email: string;
+  acao: string;
+  ip_origem: string;
+  status: string;
+}
+
+export interface ConviteRow {
+  id: number;
+  email: string;
+  perfil_acesso_id: number;
+  status: 'Pendente' | 'Aceito' | 'Expirado';
+  enviado_por: string;
+  created_at: string;
+}
+
 export interface ExtendedDatabase {
   public: {
     Tables: {
@@ -116,6 +143,9 @@ export interface ExtendedDatabase {
       fornecedor: { Row: FornecedorRow; Insert: Partial<FornecedorRow>; Update: Partial<FornecedorRow>; Relationships: [] }
       imagem_produto: { Row: ImagemProdutoRow; Insert: Partial<ImagemProdutoRow>; Update: Partial<ImagemProdutoRow>; Relationships: [] }
       usuarios_equipes: { Row: UsuariosEquipesRow; Insert: Partial<UsuariosEquipesRow>; Update: Partial<UsuariosEquipesRow>; Relationships: [] }
+      item_history: { Row: ItemHistoryRow; Insert: Partial<ItemHistoryRow>; Update: Partial<ItemHistoryRow>; Relationships: [] }
+      acesso_logs: { Row: AcessoLogRow; Insert: Partial<AcessoLogRow>; Update: Partial<AcessoLogRow>; Relationships: [] }
+      convites: { Row: ConviteRow; Insert: Partial<ConviteRow>; Update: Partial<ConviteRow>; Relationships: [] }
     }
     Views: OriginalDatabase['public']['Views']
     Functions: OriginalDatabase['public']['Functions']
@@ -174,7 +204,7 @@ export interface InventoryItem {
   produtoId: string | number;
   nome: string;
   preco: number;
-  fotoUrl: string | null;
+  fotoUrl?: string | null;
   
   // Ativos (estoque) specific
   numeroPatrimonio?: string;

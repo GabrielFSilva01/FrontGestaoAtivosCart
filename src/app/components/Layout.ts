@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { AppStore } from '../store/AppStore';
+import { AppStore } from '../store/AppStoreService';
 
 @Component({
   selector: 'app-layout',
@@ -47,6 +47,22 @@ import { AppStore } from '../store/AppStore';
               <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
             <span>Usuários</span>
+          </a>
+
+          <a routerLink="/tree" routerLinkActive="active" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>Hierarquia</span>
+          </a>
+
+          <a routerLink="/perfil" routerLinkActive="active" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>Meu Perfil</span>
           </a>
         </nav>
 

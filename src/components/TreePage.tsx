@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../app/store/AppStore';
 import { TreeNode } from '../lib/supabase/types';
 
-// LAZY LOADING COMPONENT WITH INTERSECTION OBSERVER
+// LAZY LOADING 
 interface LazyRenderProps {
   children: React.ReactNode;
 }
@@ -62,7 +62,7 @@ const RecursiveTreeComponent: React.FC<RecursiveTreeComponentProps> = React.memo
   const children = useMemo(() => {
     if (!isExpanded) return [];
     return mercadologicalTree.filter(
-      child => child.level === node.level + 1 && child.parentId === node.id
+      (child: TreeNode) => child.level === node.level + 1 && child.parentId === node.id
     );
   }, [isExpanded, mercadologicalTree, node.level, node.id]);
 
@@ -80,11 +80,11 @@ const RecursiveTreeComponent: React.FC<RecursiveTreeComponentProps> = React.memo
       >
         <span className="folder-icon">
           {node.level < 5 ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" class={`chevron ${isExpanded ? 'down' : 'right'}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`chevron ${isExpanded ? 'down' : 'right'}`}>
               <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
           ) : null}
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="folder">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="folder">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
           </svg>
         </span>
@@ -108,7 +108,7 @@ const RecursiveTreeComponent: React.FC<RecursiveTreeComponentProps> = React.memo
       {isExpanded && children.length > 0 && (
         <div className="tree-node-children">
           <LazyRender>
-            {children.map(child => (
+            {children.map((child: TreeNode) => (
               <RecursiveTreeComponent
                 key={`${child.type}-${child.id}`}
                 node={child}
@@ -176,7 +176,7 @@ export const TreePage: React.FC = () => {
       accumKeys.push(key);
       const [type, idStr] = key.split(':');
       const id = parseInt(idStr);
-      const match = mercadologicalTree.find(n => n.type === type && n.id === id);
+      const match = mercadologicalTree.find((n: TreeNode) => n.type === type && n.id === id);
       if (match) {
         crumbs.push({
           name: match.nome,
@@ -190,7 +190,7 @@ export const TreePage: React.FC = () => {
 
   // Root level TreeNodes (Departamentos)
   const rootNodes = useMemo(() => {
-    return mercadologicalTree.filter(n => n.level === 1);
+    return mercadologicalTree.filter((n: TreeNode) => n.level === 1);
   }, [mercadologicalTree]);
 
   // Incremental local cache Search (< 50ms latency)
@@ -199,7 +199,7 @@ export const TreePage: React.FC = () => {
     const lowerQuery = searchQuery.toLowerCase();
     const startTime = performance.now();
     
-    const results = mercadologicalTree.filter(n => 
+    const results = mercadologicalTree.filter((n: TreeNode) => 
       n.nome.toLowerCase().includes(lowerQuery)
     );
     
@@ -245,10 +245,11 @@ export const TreePage: React.FC = () => {
 
       while (current) {
         pathSegments.unshift(`${current.type}:${current.id}`);
-        // Find parent
-        const parentLvl = current.level - 1;
-        const parentId = current.parentId;
-        current = mercadologicalTree.find(n => n.level === parentLvl && n.id === parentId) || null;
+        const parentLvl: number = current.level - 1;
+        const parentId: number | null = current.parentId;
+        const targetParentLvl: number = parentLvl;
+        const targetParentId: number | null = parentId;
+        current = mercadologicalTree.find((n: TreeNode) => n.level === targetParentLvl && n.id === targetParentId) || null;
       }
       newPath = pathSegments.join('-');
     }
@@ -262,7 +263,7 @@ export const TreePage: React.FC = () => {
     // Find first product in hierarchy to pre-fill
     let matchedProdId = 0;
     if (node.type === 'marca') {
-      const products = produtoList.filter(p => p.marca_id === node.id);
+      const products = produtoList.filter((p: any) => p.marca_id === node.id);
       if (products.length > 0) matchedProdId = products[0].id;
     }
     
@@ -309,7 +310,7 @@ export const TreePage: React.FC = () => {
     const node = selectedProductNode;
 
     if (node.type === 'marca') {
-      return produtoList.filter(p => p.marca_id === node.id);
+      return produtoList.filter((p: any) => p.marca_id === node.id);
     }
     // For other levels, we could recursively filter, but showing all or matching node brands works nicely
     return produtoList;
@@ -335,7 +336,7 @@ export const TreePage: React.FC = () => {
       {/* SEARCH BAR (LATENCY < 50ms) */}
       <div className="tree-search-wrapper">
         <div className="search-input-container">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="search-icon">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
@@ -374,15 +375,15 @@ export const TreePage: React.FC = () => {
           <h3>Resultados da busca ({filteredSearchNodes.length})</h3>
           {filteredSearchNodes.length > 0 ? (
             <div className="search-results-list">
-              {filteredSearchNodes.map(node => {
+              {filteredSearchNodes.map((node: TreeNode) => {
                 const count = nodeItemCounts.get(`${node.type}-${node.id}`) || 0;
                 return (
                   <div 
                     key={`${node.type}-${node.id}`} 
                     className="search-result-row"
                     onClick={() => {
+                      setSearchParams({ path: `${node.type}:${node.id}` });
                       setSearchQuery('');
-                      handleSelectNode(node);
                     }}
                   >
                     <span className="node-type-pill">{node.type}</span>
@@ -408,7 +409,7 @@ export const TreePage: React.FC = () => {
       ) : (
         <div className="tree-explorer-card animate-fade-in">
           <div className="tree-root-container">
-            {rootNodes.map(node => (
+            {rootNodes.map((node: TreeNode) => (
               <RecursiveTreeComponent
                 key={`${node.type}-${node.id}`}
                 node={node}
@@ -470,7 +471,7 @@ export const TreePage: React.FC = () => {
 
               {/* Product selector */}
               <div className="form-group">
-                <label for="modal-produto">Produto</label>
+                <label htmlFor="modal-produto">Produto</label>
                 <select 
                   id="modal-produto"
                   value={formProdutoId}
@@ -479,7 +480,7 @@ export const TreePage: React.FC = () => {
                   required
                 >
                   <option value="">Selecione um produto...</option>
-                  {prefilteredProducts.map(p => (
+                  {prefilteredProducts.map((p: any) => (
                     <option key={p.id} value={p.id}>{p.nome}</option>
                   ))}
                 </select>
@@ -489,7 +490,7 @@ export const TreePage: React.FC = () => {
               {formType === 'ativo' ? (
                 <>
                   <div className="form-group">
-                    <label for="modal-patrimonio">Número do Patrimônio</label>
+                    <label htmlFor="modal-patrimonio">Número do Patrimônio</label>
                     <input
                       type="text"
                       id="modal-patrimonio"
@@ -502,7 +503,7 @@ export const TreePage: React.FC = () => {
                   </div>
 
                   <div className="form-group">
-                    <label for="modal-condicao">Condição</label>
+                    <label htmlFor="modal-condicao">Condição</label>
                     <select
                       id="modal-condicao"
                       value={formCondicao}
@@ -516,7 +517,7 @@ export const TreePage: React.FC = () => {
                   </div>
 
                   <div className="form-group">
-                    <label for="modal-status">Status</label>
+                    <label htmlFor="modal-status">Status</label>
                     <select
                       id="modal-status"
                       value={formStatus}
@@ -532,7 +533,7 @@ export const TreePage: React.FC = () => {
                 <>
                   {/* Conditional Lote Inputs */}
                   <div className="form-group">
-                    <label for="modal-quantidade">Quantidade</label>
+                    <label htmlFor="modal-quantidade">Quantidade</label>
                     <input
                       type="number"
                       id="modal-quantidade"
@@ -545,7 +546,7 @@ export const TreePage: React.FC = () => {
                   </div>
 
                   <div className="form-group">
-                    <label for="modal-consumo">Tipo de Consumo</label>
+                    <label htmlFor="modal-consumo">Tipo de Consumo</label>
                     <select
                       id="modal-consumo"
                       value={formTipoConsumo}

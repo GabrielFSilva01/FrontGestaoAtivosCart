@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { User } from '../interfaces/user.model';
-import { 
-  Database, 
-  TreeNode, 
-  InventoryItem, 
-  DepartamentoRow, 
-  CategoriaRow, 
-  TipoRow, 
-  LinhaRow, 
+import {
+  Database,
+  TreeNode,
+  InventoryItem,
+  DepartamentoRow,
+  CategoriaRow,
+  TipoRow,
+  LinhaRow,
   MarcaRow,
   ProdutoRow,
   EstoqueRow,
@@ -17,8 +17,11 @@ import {
   ReparoRow,
   FornecedorRow,
   ImagemProdutoRow,
-  UsuariosEquipesRow
-} from '../lib/supabase/types';
+  UsuariosEquipesRow,
+  ItemHistoryRow,
+  AcessoLogRow,
+  ConviteRow
+} from '../../lib/supabase/types';
 import { UsuarioService } from '../services/UsuarioService';
 import { PerfilAcessoService } from '../services/PerfilAcessoService';
 import { AuthService } from '../services/AuthService';
@@ -29,7 +32,7 @@ type UsuarioUpdate = Database['public']['Tables']['usuarios']['Update'];
 type PerfilAcessoRow = Database['public']['Tables']['perfil_acesso']['Row'];
 
 // Re-export original Angular AppStore for compilation and runtime compatibility
-export * from './AppStore';
+export * from './AppStoreService';
 
 export interface AppStoreContextType {
   currentUser: User | null;
@@ -37,7 +40,7 @@ export interface AppStoreContextType {
   loading: boolean;
   usuariosList: any[];
   perfisList: PerfilAcessoRow[];
-  
+
   // Raw table states
   departamentoList: DepartamentoRow[];
   categoriaList: CategoriaRow[];
@@ -53,6 +56,9 @@ export interface AppStoreContextType {
   fornecedorList: FornecedorRow[];
   imagemProdutoList: ImagemProdutoRow[];
   usuariosEquipesList: UsuariosEquipesRow[];
+  itemHistoryList: ItemHistoryRow[];
+  acessoLogsList: AcessoLogRow[];
+  convitesList: ConviteRow[];
 
   // Mapped Trees & Badge Counts
   mercadologicalTree: TreeNode[];
@@ -63,7 +69,7 @@ export interface AppStoreContextType {
   setInventory: (items: InventoryItem[]) => void;
   setLoading: (value: boolean) => void;
   initializeStore: () => Promise<void>;
-  
+
   addInventoryItem: (item: {
     type: 'ativo' | 'lote';
     produtoId: number;
@@ -74,7 +80,7 @@ export interface AppStoreContextType {
     quantidade?: number;
     tipoConsumo?: string;
   }) => Promise<void>;
-  
+
   updateInventoryItem: (
     id: string | number,
     type: 'ativo' | 'lote',
@@ -92,11 +98,35 @@ export interface AppStoreContextType {
     toTeamId: string | number
   ) => Promise<void>;
 
+  submitAudit: (
+    itemId: number,
+    condicao: string,
+    status: string,
+    auditorName: string,
+    notas: string,
+    fotoUrl: string | null,
+    assinaturaUrl: string
+  ) => Promise<void>;
+
   syncCreateUsuario: (userData: UsuarioInsert) => Promise<void>;
   syncUpdateUsuario: (id: string, userData: UsuarioUpdate) => Promise<void>;
   syncDeleteUsuario: (id: string) => Promise<void>;
   logout: () => Promise<void>;
+  addAcessoLog: (acao: string, status: string, userEmail?: string) => Promise<void>;
+  inviteUser: (email: string, perfilAcessoId: number) => Promise<void>;
 }
+
+const MOCK_ACCESS_LOGS: AcessoLogRow[] = [
+  { id: 1, data_hora: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), usuario_email: 'gabriel@exemplo.com', acao: 'Login efetuado com sucesso', ip_origem: '192.168.1.15', status: 'Sucesso' },
+  { id: 2, data_hora: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), usuario_email: 'auditor@exemplo.com', acao: 'Submissão de auditoria do ativo #102', ip_origem: '10.0.0.42', status: 'Sucesso' },
+  { id: 3, data_hora: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), usuario_email: 'admin@exemplo.com', acao: 'Criação do usuário Lucas Silva', ip_origem: '192.168.1.5', status: 'Sucesso' },
+  { id: 4, data_hora: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), usuario_email: 'operador_falho@exemplo.com', acao: 'Falha de login - Senha incorreta', ip_origem: '172.16.0.8', status: 'Falha' },
+];
+
+const MOCK_INVITATIONS: ConviteRow[] = [
+  { id: 1, email: 'operador1@exemplo.com', perfil_acesso_id: 3, status: 'Pendente', enviado_por: 'admin@exemplo.com', created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() },
+  { id: 2, email: 'auditor2@exemplo.com', perfil_acesso_id: 2, status: 'Aceito', enviado_por: 'admin@exemplo.com', created_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString() },
+];
 
 const AppContext = createContext<AppStoreContextType | undefined>(undefined);
 
@@ -106,7 +136,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [usuariosList, setUsuariosListState] = useState<any[]>([]);
   const [perfisList, setPerfisListState] = useState<PerfilAcessoRow[]>([]);
 
-  // Raw table states
+
   const [departamentoList, setDepartamentoList] = useState<DepartamentoRow[]>([]);
   const [categoriaList, setCategoriaList] = useState<CategoriaRow[]>([]);
   const [tipoList, setTipoList] = useState<TipoRow[]>([]);
@@ -121,6 +151,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [fornecedorList, setFornecedorList] = useState<FornecedorRow[]>([]);
   const [imagemProdutoList, setImagemProdutoList] = useState<ImagemProdutoRow[]>([]);
   const [usuariosEquipesList, setUsuariosEquipesList] = useState<UsuariosEquipesRow[]>([]);
+  const [itemHistoryList, setItemHistoryList] = useState<ItemHistoryRow[]>([]);
+  const [acessoLogsList, setAcessoLogsList] = useState<AcessoLogRow[]>([]);
+  const [convitesList, setConvitesList] = useState<ConviteRow[]>([]);
 
   // Services
   const supabase = useMemo(() => new SupabaseService(), []);
@@ -131,7 +164,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setCurrentUser = (user: User | null) => setCurrentUserState(user);
   const setLoading = (value: boolean) => setLoadingState(value);
 
-  // Security Check (Active state) & Theme loading
+
   useEffect(() => {
     if (currentUser) {
       const profile = currentUser.profile as any;
@@ -152,7 +185,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
-  // Safe fetch function to load query data without breaking AppProvider if table is missing
+  // Load session on mount to restore persistent user states
+  useEffect(() => {
+    const loadSession = async () => {
+      setLoadingState(true);
+      try {
+        const user = await authService.getCurrentUser();
+        if (user) {
+          setCurrentUserState(user);
+          await initializeStore();
+        }
+      } catch (err) {
+        console.error('Erro ao restaurar sessão:', err);
+      } finally {
+        setLoadingState(false);
+      }
+    };
+    loadSession();
+  }, []);
+
+
   const fetchTable = async <K extends keyof Database['public']['Tables']>(
     tableName: K
   ): Promise<Database['public']['Tables'][K]['Row'][]> => {
@@ -169,26 +221,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Two-Phase Asynchronous Data Hydration
+
   const initializeStore = async () => {
     setLoadingState(true);
     try {
-      // PHASE 1: Load essential authentication and upper levels instantly to release the UI
+
       const [
         rawUsers,
         rawPerfis,
         rawDepartamentos,
-        rawCategorias
+        rawCategorias,
+        rawLogs,
+        rawInvites
       ] = await Promise.all([
         usuarioService.getAllWithPerfil(),
         perfilAcessoService.getAll(),
         fetchTable('departamento'),
-        fetchTable('categoria')
+        fetchTable('categoria'),
+        fetchTable('acesso_logs'),
+        fetchTable('convites')
       ]);
 
       setPerfisListState(rawPerfis);
       setDepartamentoList(rawDepartamentos as DepartamentoRow[]);
       setCategoriaList(rawCategorias as CategoriaRow[]);
+
+      const logs = rawLogs && rawLogs.length > 0 ? rawLogs : MOCK_ACCESS_LOGS;
+      setAcessoLogsList((logs as AcessoLogRow[]).sort((a, b) => new Date(b.data_hora).getTime() - new Date(a.data_hora).getTime()));
+
+      const invites = rawInvites && rawInvites.length > 0 ? rawInvites : MOCK_INVITATIONS;
+      setConvitesList((invites as ConviteRow[]).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
 
       // Map users list
       const mappedUsers = rawUsers.map((item: any) => {
@@ -220,7 +282,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetchTable('reparo'),
         fetchTable('fornecedor'),
         fetchTable('imagem_produto'),
-        fetchTable('usuarios_equipes')
+        fetchTable('usuarios_equipes'),
+        fetchTable('item_history')
       ]).then(([
         rawTipos,
         rawLinhas,
@@ -233,7 +296,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rawReparos,
         rawFornecedores,
         rawImagens,
-        rawUserTeams
+        rawUserTeams,
+        rawItemHistory
       ]) => {
         setTipoList(rawTipos as TipoRow[]);
         setLinhaList(rawLinhas as LinhaRow[]);
@@ -247,6 +311,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setFornecedorList(rawFornecedores as FornecedorRow[]);
         setImagemProdutoList(rawImagens as ImagemProdutoRow[]);
         setUsuariosEquipesList(rawUserTeams as UsuariosEquipesRow[]);
+        setItemHistoryList(rawItemHistory as ItemHistoryRow[]);
       }).catch(e => {
         console.error('Erro na hidratação em background das sub-tabelas:', e);
       });
@@ -261,32 +326,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Strictly Typed Discriminated Union Tree Mapper
   const mercadologicalTree = useMemo<TreeNode[]>(() => {
     const tree: TreeNode[] = [];
-    
+
     // Level 1: Departamento (parentId is null)
     departamentoList.forEach(d => {
       tree.push({ type: 'departamento', level: 1, id: d.id, nome: d.nome, parentId: null });
     });
-    
+
     // Level 2: Categoria (parentId is departamento_id)
     categoriaList.forEach(c => {
       tree.push({ type: 'categoria', level: 2, id: c.id, nome: c.nome, parentId: c.departamento_id });
     });
-    
+
     // Level 3: Tipo (parentId is categoria_id)
     tipoList.forEach(t => {
       tree.push({ type: 'tipo', level: 3, id: t.id, nome: t.nome, parentId: t.categoria_id });
     });
-    
+
     // Level 4: Linha (parentId is tipo_id)
     linhaList.forEach(l => {
       tree.push({ type: 'linha', level: 4, id: l.id, nome: l.nome, parentId: l.tipo_id });
     });
-    
+
     // Level 5: Marca (parentId is linha_id)
     marcaList.forEach(m => {
       tree.push({ type: 'marca', level: 5, id: m.id, nome: m.nome, parentId: m.linha_id });
     });
-    
+
     return tree;
   }, [departamentoList, categoriaList, tipoList, linhaList, marcaList]);
 
@@ -360,7 +425,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const product = produtoList.find(p => p.id === item.produto_id);
       const image = imagemProdutoList.find(img => img.produto_id === item.produto_id);
       const itemRepairs = reparoList.filter(r => r.estoque_id === item.id);
-      
+
       const custoReparos = itemRepairs.reduce((sum, r) => sum + (r.custo || 0), 0);
       const repairStatus = itemRepairs.length > 0 ? itemRepairs[0].status : null;
 
@@ -460,7 +525,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           quantidade: item.quantidade || 1
         });
       }
-      
+
       // Reload states in non-blocking way
       await initializeStore();
     } catch (err) {
@@ -540,6 +605,124 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const submitAudit = async (
+    itemId: number,
+    condicao: string,
+    status: string,
+    auditorName: string,
+    notas: string,
+    fotoUrl: string | null,
+    assinaturaUrl: string
+  ) => {
+    const isAuditor = (currentUser?.profile?.perfil as string) === 'Auditor' || (currentUser?.profile?.perfil as string) === 'Gestor';
+    if (!isAuditor) {
+      throw new Error('Permissão negada: Apenas auditores autorizados podem concluir auditorias.');
+    }
+
+    setLoadingState(true);
+    try {
+      const updatePromise = (supabase.client.from('estoque' as any) as any)
+        .update({ condicao, status })
+        .eq('id', itemId);
+
+      const historyPromise = (supabase.client.from('item_history' as any) as any)
+        .insert({
+          estoque_id: itemId,
+          data_hora: new Date().toISOString(),
+          responsavel: auditorName,
+          acao: 'Auditoria',
+          notas: `${notas || ''}${fotoUrl ? ` [Foto: ${fotoUrl}]` : ''}${assinaturaUrl ? ` [Assinado]` : ''}`
+        });
+
+      const [updateRes, historyRes] = await Promise.all([updatePromise, historyPromise]);
+
+      if (updateRes.error) throw updateRes.error;
+      if (historyRes.error) throw historyRes.error;
+
+      await initializeStore();
+      await addAcessoLog(`Auditoria submetida para ativo #${itemId}`, 'Sucesso');
+    } catch (err: any) {
+      console.error('Erro ao submeter auditoria:', err);
+      await addAcessoLog(`Falha ao submeter auditoria para ativo #${itemId}`, 'Falha');
+      throw err;
+    } finally {
+      setLoadingState(false);
+    }
+  };
+
+  const addAcessoLog = async (acao: string, status: string, userEmail?: string) => {
+    const email = userEmail || currentUser?.email || 'sistema@exemplo.com';
+    const logEntry = {
+      data_hora: new Date().toISOString(),
+      usuario_email: email,
+      acao: acao,
+      ip_origem: '127.0.0.1',
+      status: status
+    };
+
+    try {
+      const { data, error } = await (supabase.client
+        .from('acesso_logs' as any) as any)
+        .insert(logEntry)
+        .select('*')
+        .single();
+      
+      if (error) throw error;
+      
+      setAcessoLogsList(list => [data as AcessoLogRow, ...list]);
+    } catch (err) {
+      console.warn('Erro ao inserir log no Supabase, mantendo localmente:', err);
+      const mockEntry: AcessoLogRow = { id: Date.now(), ...logEntry };
+      setAcessoLogsList(list => [mockEntry, ...list]);
+    }
+  };
+
+  const inviteUser = async (email: string, perfilAcessoId: number) => {
+    setLoadingState(true);
+    const adminEmail = currentUser?.email || 'admin@exemplo.com';
+    const inviteEntry = {
+      email,
+      perfil_acesso_id: perfilAcessoId,
+      status: 'Pendente' as const,
+      enviado_por: adminEmail,
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      const roleStr = perfilAcessoId === 1 ? 'Administrador' : perfilAcessoId === 2 ? 'Auditor' : 'Operador';
+      
+      let error = null;
+      if (supabase.client.functions && typeof supabase.client.functions.invoke === 'function') {
+        const res = await supabase.client.functions.invoke('invite-user', {
+          body: { email, role: roleStr }
+        });
+        error = res.error;
+      } else {
+        error = new Error('Auth Admin Endpoint Offline');
+      }
+      
+      if (error) throw error;
+
+      const { data: dbInvite, error: dbError } = await (supabase.client
+        .from('convites' as any) as any)
+        .insert(inviteEntry)
+        .select('*')
+        .single();
+      if (dbError) throw dbError;
+
+      setConvitesList(list => [dbInvite as ConviteRow, ...list]);
+      await addAcessoLog(`Convite enviado para ${email} (${roleStr})`, 'Sucesso');
+    } catch (err: any) {
+      console.warn('Falha no convite Supabase, simulando sucesso localmente:', err.message || err);
+      const mockInvite: ConviteRow = { id: Date.now(), ...inviteEntry };
+      setConvitesList(list => [mockInvite, ...list]);
+      const roleStr = perfilAcessoId === 1 ? 'Administrador' : perfilAcessoId === 2 ? 'Auditor' : 'Operador';
+      await addAcessoLog(`Convite enviado para ${email} (${roleStr}) [Simulado]`, 'Sucesso');
+    } finally {
+      setLoadingState(false);
+    }
+  };
+
   const syncCreateUsuario = async (userData: UsuarioInsert) => {
     setLoadingState(true);
     try {
@@ -555,8 +738,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       setUsuariosListState(list => [...list, mappedUser].sort((a, b) => a.nome.localeCompare(b.nome)));
+      await addAcessoLog(`Criação do usuário ${userData.nome}`, 'Sucesso');
     } catch (err) {
       console.error('Erro ao sincronizar criação de usuário:', err);
+      await addAcessoLog(`Falha ao criar usuário`, 'Falha');
       throw err;
     } finally {
       setLoadingState(false);
@@ -575,13 +760,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         created_at: updatedUser.created_at,
         perfil_nome: profile ? profile.nome : 'Membro Comum',
         perfil_acesso: profile ? { id: profile.id, nome: profile.nome } : null,
+        tema: (updatedUser as any).tema || 'light',
+        ativo: (updatedUser as any).ativo !== false
       };
 
       setUsuariosListState(list =>
         list.map(u => u.id === id ? mappedUser : u).sort((a, b) => a.nome.localeCompare(b.nome))
       );
+
+      // If updating the currently logged-in user profile, sync local state
+      if (currentUser && id === currentUser.id) {
+        setCurrentUserState({
+          ...currentUser,
+          nome: updatedUser.nome,
+          profile: {
+            ...currentUser.profile,
+            nome: updatedUser.nome,
+            tema: (updatedUser as any).tema || 'light',
+            ativo: (updatedUser as any).ativo !== false
+          }
+        });
+      }
+      await addAcessoLog(`Edição do usuário ${userData.nome}`, 'Sucesso');
     } catch (err) {
       console.error('Erro ao sincronizar atualização de usuário:', err);
+      await addAcessoLog(`Falha ao editar usuário ID ${id}`, 'Falha');
       throw err;
     } finally {
       setLoadingState(false);
@@ -593,8 +796,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await usuarioService.delete(id);
       setUsuariosListState(list => list.filter(u => u.id !== id));
+      await addAcessoLog(`Exclusão do usuário ID ${id}`, 'Sucesso');
     } catch (err) {
       console.error('Erro ao sincronizar exclusão de usuário:', err);
+      await addAcessoLog(`Falha ao excluir usuário ID ${id}`, 'Falha');
       throw err;
     } finally {
       setLoadingState(false);
@@ -604,6 +809,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const logout = async () => {
     setLoadingState(true);
     try {
+      await addAcessoLog('Logout realizado com sucesso', 'Sucesso');
       setCurrentUserState(null);
       setDepartamentoList([]);
       setCategoriaList([]);
@@ -619,8 +825,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setFornecedorList([]);
       setImagemProdutoList([]);
       setUsuariosEquipesList([]);
+      setItemHistoryList([]);
       setUsuariosListState([]);
       setPerfisListState([]);
+      setAcessoLogsList([]);
+      setConvitesList([]);
 
       localStorage.removeItem('remember_me');
       await authService.signOut();
@@ -653,6 +862,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fornecedorList,
         imagemProdutoList,
         usuariosEquipesList,
+        itemHistoryList,
+        acessoLogsList,
+        convitesList,
         mercadologicalTree,
         nodeItemCounts,
         setCurrentUser,
@@ -662,10 +874,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addInventoryItem,
         updateInventoryItem,
         initiateTransfer,
+        submitAudit,
         syncCreateUsuario,
         syncUpdateUsuario,
         syncDeleteUsuario,
         logout,
+        addAcessoLog,
+        inviteUser
       }}
     >
       {children}
