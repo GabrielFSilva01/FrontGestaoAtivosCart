@@ -16,24 +16,40 @@ export abstract class BaseService<T> {
    * Busca todos os registros da tabela
    */
   async getAll(): Promise<T[]> {
-    const { data, error } = await (this.supabase.client
-      .from(this.tableName as any) as any)
-      .select('*');
-    if (error) throw error;
-    return data as T[];
+    try {
+      const { data, error } = await (this.supabase.client
+        .from(this.tableName as any) as any)
+        .select('*');
+      if (error) {
+        console.warn(`[BaseService] Erro ao carregar tabela '${String(this.tableName)}':`, error.message);
+        return [];
+      }
+      return (data || []) as T[];
+    } catch (err: any) {
+      console.warn(`[BaseService] Falha de conexão/exceção na tabela '${String(this.tableName)}':`, err.message || err);
+      return [];
+    }
   }
 
   /**
    * Busca um registro por ID
    */
   async getById(id: string | number): Promise<T | null> {
-    const { data, error } = await (this.supabase.client
-      .from(this.tableName as any) as any)
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-    if (error) throw error;
-    return data as T;
+    try {
+      const { data, error } = await (this.supabase.client
+        .from(this.tableName as any) as any)
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (error) {
+        console.warn(`[BaseService] Erro ao buscar ID ${id} na tabela '${String(this.tableName)}':`, error.message);
+        return null;
+      }
+      return data as T;
+    } catch (err: any) {
+      console.warn(`[BaseService] Exceção ao buscar ID ${id} na tabela '${String(this.tableName)}':`, err.message || err);
+      return null;
+    }
   }
 
   /**

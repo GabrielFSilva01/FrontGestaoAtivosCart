@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "path": ".",
+      "name": "Frontend (React)"
+    },
+    {
+      "path": "../GestaoAtivosCart",
+      "name": "Backend (Spring Boot)"
+    }
+  ],
+  "settings": {
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.jdt.ls.lombokSupport.enabled": true,
+    "java.configuration.updateBuildConfiguration": "automatic"
+  }
+}

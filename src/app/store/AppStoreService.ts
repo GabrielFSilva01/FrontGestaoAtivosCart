@@ -293,6 +293,7 @@ export class AppStore {
       
       // Remove qualquer flag de feedback de persistência se houver
       localStorage.removeItem('remember_me');
+      localStorage.removeItem('auth_token');
 
       // 3. Chama o signOut do Supabase
       await this.authService.signOut();

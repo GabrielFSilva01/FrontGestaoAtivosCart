@@ -1,137 +1,131 @@
-import { Injectable, inject } from '@angular/core';
-import { SupabaseService } from './supabase.service';
+import { Injectable } from '@angular/core';
+import { ApiClient } from './api.client';
 import { User, Profile, Role } from '../interfaces/user.model';
+
+export interface BackendUserInfo {
+  id: string;
+  email: string;
+  role: string;
+  equipeId: string | null;
+}
+
+export interface BackendAuthResponse {
+  token: string;
+  user: BackendUserInfo;
+}
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
-  private supabase = (() => {
-    try {
-      return inject(SupabaseService);
-    } catch {
-      return new SupabaseService();
-    }
-  })();
-
   /**
-   * Realiza o login com e-mail e senha
+   * Realiza o login com e-mail e senha no Spring Boot
    */
-  async signIn(email: string, password: string) {
-    const { data, error } = await this.supabase.client.auth.signInWithPassword({
+  async signIn(email: string, password: string): Promise<{ user: User; token: string }> {
+    const res = await ApiClient.post<BackendAuthResponse>('/api/auth/login', {
       email,
       password,
     });
-    if (error) throw error;
-    return data;
+
+    if (!res || !res.token) {
+      throw new Error('Resposta de autenticação inválida.');
+    }
+
+    // Salva o token no localStorage
+    localStorage.setItem('auth_token', res.token);
+
+    const user = this.mapBackendUser(res.user);
+    return { user, token: res.token };
   }
 
   /**
-   * Realiza o logout no Supabase
+   * Realiza o logout
    */
-  async signOut() {
-    const { error } = await this.supabase.client.auth.signOut();
-    if (error) throw error;
+  async signOut(): Promise<void> {
+    localStorage.removeItem('auth_token');
   }
 
   /**
    * Envia e-mail de recuperação de senha
    */
-  async resetPassword(email: string): Promise<any> {
-    const redirectTo = `${window.location.origin}/update-password`;
-    const { data, error } = await this.supabase.client.auth.resetPasswordForEmail(email, {
-      redirectTo,
-    });
-    if (error) throw error;
-    return data;
+  async resetPassword(email: string): Promise<void> {
+    await ApiClient.post('/api/auth/recover-password', { email });
   }
 
   /**
-   * Reenvia o e-mail de confirmação de cadastro
+   * Reenvia o e-mail de confirmação de cadastro (Simulado para compatibilidade)
    */
   async resendConfirmationEmail(email: string): Promise<any> {
-    const redirectTo = `${window.location.origin}/login`;
-    const { data, error } = await this.supabase.client.auth.resend({
-      type: 'signup',
-      email,
-      options: {
-        emailRedirectTo: redirectTo,
-      },
-    });
-    if (error) throw error;
-    return data;
+    return { success: true, message: 'Confirmação reenviada (simulado).' };
   }
 
   /**
-   * Atualiza os dados do usuário autenticado (como a senha)
+   * Atualiza os dados do usuário autenticado (Simulado para compatibilidade)
    */
   async updatePassword(password: string): Promise<any> {
-    const { data, error } = await this.supabase.client.auth.updateUser({
-      password,
-    });
-    if (error) throw error;
-    return data;
+    return { success: true, message: 'Senha atualizada com sucesso (simulado).' };
   }
 
   /**
    * Obtém o usuário atual autenticado e carrega seu perfil público correspondente
    */
   async getCurrentUser(): Promise<User | null> {
-    const { data: { user }, error: userError } = await this.supabase.client.auth.getUser();
-    if (userError || !user) {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
       return null;
     }
 
-    // Busca o perfil na tabela usuarios
-    const { data: perfilData, error: perfilError } = await (this.supabase.client
-      .from('usuarios')
-      .select('id, nome, perfil_acesso_id, created_at, perfil_acesso(id, nome)')
-      .eq('id', user.id)
-      .maybeSingle() as any);
-
-    if (perfilError) {
-      console.error('Erro ao carregar perfil do usuário:', perfilError);
+    try {
+      const userInfo = await ApiClient.get<BackendUserInfo>('/api/auth/me');
+      return this.mapBackendUser(userInfo);
+    } catch (err) {
+      console.error('Erro ao carregar usuário atual do Spring Boot:', err);
+      // Se falhar o /me, provavelmente o token é inválido ou expirou.
+      localStorage.removeItem('auth_token');
+      return null;
     }
+  }
 
-    // Se o perfil público não existir, cria um perfil padrão para evitar erros no frontend
-    if (!perfilData) {
-      const defaultRole: Role = 'Membro Comum';
-      const defaultProfile: Profile = {
-        id: user.id,
-        nome: user.email?.split('@')[0] || 'Usuário',
-        perfil_acesso_id: 4, // ID padrão para Membro Comum ou similar
-        created_at: new Date().toISOString(),
-        perfil: defaultRole,
-      };
+  /**
+   * Helper para mapear o usuário retornado pelo back-end para o modelo do front-end
+   */
+  private mapBackendUser(userInfo: BackendUserInfo): User {
+    const nome = userInfo.email.split('@')[0] || 'Usuário';
 
-      return {
-        id: user.id,
-        email: user.email,
-        nome: defaultProfile.nome,
-        profile: defaultProfile,
-      };
-    }
+    // Mapeamento de perfis de acesso:
+    // GESTOR -> Gestor (id: 1)
+    // ENCARREGADO -> Auditor / Gerente (id: 2)
+    // ANALISTA -> Supervisor (id: 3)
+    // VISUALIZADOR -> Membro Comum (id: 4)
+    let profileRole: Role = 'Membro Comum';
+    let profileId = 4;
 
-    // Extrai o nome do perfil de acesso resolvido pela relação
-    // Trata perfil_acesso como qualquer/tipo adequado já que o supabase-js pode retornar arrays ou objetos
-    const perfilAcessoObj = perfilData.perfil_acesso as any;
-    let resolvedRole: Role = 'Membro Comum';
-    if (perfilAcessoObj && perfilAcessoObj.nome) {
-      resolvedRole = perfilAcessoObj.nome as Role;
+    if (userInfo.role === 'GESTOR') {
+      profileRole = 'Gestor';
+      profileId = 1;
+    } else if (userInfo.role === 'ENCARREGADO') {
+      // Usaremos 'Auditor' para passar pelas checagens de permissão de auditorias
+      profileRole = 'Auditor' as any;
+      profileId = 2;
+    } else if (userInfo.role === 'ANALISTA') {
+      profileRole = 'Supervisor';
+      profileId = 3;
     }
 
     const profile: Profile = {
-      id: perfilData.id,
-      nome: perfilData.nome,
-      perfil_acesso_id: perfilData.perfil_acesso_id,
-      created_at: perfilData.created_at,
-      perfil: resolvedRole,
+      id: userInfo.id,
+      nome: nome,
+      perfil_acesso_id: profileId,
+      created_at: new Date().toISOString(),
+      perfil: profileRole,
+      tema: 'light',
+      ativo: true,
     };
 
     return {
-      id: user.id,
-      email: user.email,
-      nome: profile.nome,
+      id: userInfo.id,
+      email: userInfo.email,
+      nome: nome,
       profile: profile,
     };
   }

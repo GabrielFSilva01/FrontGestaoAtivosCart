@@ -849,7 +849,11 @@ export class DashboardComponent implements OnInit {
   }
 
   getRoleCount(roleName: string): number {
-    return this.store.usuariosList().filter(u => u.perfil_nome === roleName).length;
+    const list = this.store.usuariosList();
+    if (roleName === 'Gerente') {
+      return list.filter(u => u.perfil_nome === 'Gerente' || u.perfil_nome === 'Auditor').length;
+    }
+    return list.filter(u => u.perfil_nome === roleName).length;
   }
 
   getRoleClass(roleName: string): string {

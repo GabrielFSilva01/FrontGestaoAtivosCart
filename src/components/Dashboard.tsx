@@ -79,6 +79,9 @@ export const Dashboard: React.FC = () => {
   };
 
   const getRoleCount = (roleName: string): number => {
+    if (roleName === 'Gerente') {
+      return usuariosList.filter((u: any) => u.perfil_nome === 'Gerente' || u.perfil_nome === 'Auditor').length;
+    }
     return usuariosList.filter((u: any) => u.perfil_nome === roleName).length;
   };
 
@@ -128,7 +131,7 @@ export const Dashboard: React.FC = () => {
   // User Actions
   const openCreateModal = () => {
     setIsEditing(false);
-    setFormId('');
+    setFormId(crypto.randomUUID());
     setFormNome('');
     setFormPerfilId(4);
     setFormNotas('');
@@ -584,18 +587,18 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="modal-form">
-              <div className="form-group">
-                <label htmlFor="uid">UID do Supabase</label>
-                <input 
-                  type="text" 
-                  id="uid" 
-                  value={formId}
-                  onChange={e => setFormId(e.target.value)}
-                  disabled={isEditing || isSubmitting}
-                  placeholder="Ex: 88cfb463-ae7c-473d-82d2-881ad394fa93"
-                  required
-                />
-              </div>
+              {isEditing && (
+                <div className="form-group">
+                  <label htmlFor="uid">UID do Usuário</label>
+                  <input 
+                    type="text" 
+                    id="uid" 
+                    value={formId}
+                    disabled={true}
+                    required
+                  />
+                </div>
+              )}
 
               <div className="form-group">
                 <label htmlFor="nome">Nome Completo</label>
